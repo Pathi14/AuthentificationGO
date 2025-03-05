@@ -1,4 +1,4 @@
-module authentificationgo
+module github.com/pathi14/AuthentificationGO
 
 go 1.24.0
 
