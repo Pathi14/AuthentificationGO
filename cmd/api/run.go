@@ -2,15 +2,12 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/pathi14/AuthentificationGO/internal"
 )
 
 func Run() {
 	router := gin.Default()
-	router.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "Hello, World!",
-		})
-	})
+	router.GET("/health", internal.Health)
 
 	router.Run("localhost:8080")
 }
