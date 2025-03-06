@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -18,9 +19,13 @@ func Run() {
 	}
 	defer db.Close()
 
+	userRepo := user.NewUserRepository(db)
+	userService := user.NewUserService(userRepo)
+	userHandler := user.NewUserHandler(userService)
+
 	//routes accessibles à tous
 	router.GET("/health", internal.Health)
-	router.POST("/register", user.Register)
+	router.POST("/register", userHandler.Register)
 	router.POST("/login", user.Login)
 	router.POST("/reset-password", user.UpdatePassword)
 
@@ -28,5 +33,6 @@ func Run() {
 	router.POST("/logout", user.Logout)
 	router.GET("/profile", user.Profile)
 
+	fmt.Println("Server is listening on port 8080")
 	router.Run("localhost:8080")
 }

@@ -30,6 +30,32 @@ func ConnectDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("error connecting to the database: %w", err)
 	}
 
+	err = CreateTableIfNotExists(conn)
+	if err != nil {
+		return nil, err
+	}
+
 	log.Println("Connected to the PostgreSQL database")
 	return conn, nil
+}
+
+func CreateTableIfNotExists(db *sql.DB) error {
+	createTableQuery := `
+	CREATE TABLE IF NOT EXISTS users (
+		id SERIAL PRIMARY KEY,
+		name VARCHAR(100),
+		age INT,
+		mobile_number VARCHAR(20),
+		email VARCHAR(100) UNIQUE,
+		password VARCHAR(255)
+	);`
+
+	_, err := db.Exec(createTableQuery)
+	if err != nil {
+		log.Printf("Error creating table: %v", err)
+		return fmt.Errorf("failed to create users table: %w", err)
+	}
+
+	log.Println("Table 'users' is ready.")
+	return nil
 }
