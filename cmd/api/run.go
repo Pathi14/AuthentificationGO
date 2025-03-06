@@ -1,13 +1,22 @@
 package api
 
 import (
+	"log"
+
 	"github.com/gin-gonic/gin"
 	"github.com/pathi14/AuthentificationGO/internal"
+	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
 	"github.com/pathi14/AuthentificationGO/internal/user"
 )
 
 func Run() {
 	router := gin.Default()
+
+	db, err := database.ConnectDB()
+	if err != nil {
+		log.Fatalf("Error connecting to the database: %v", err)
+	}
+	defer db.Close()
 
 	//routes accessibles à tous
 	router.GET("/health", internal.Health)

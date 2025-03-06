@@ -13,7 +13,7 @@ const (
 	port     = 5432
 	user     = "admin"
 	password = "secret"
-	dbname   = "authentificationgo_bd"
+	dbname   = "authentificationgo"
 )
 
 func ConnectDB() (*sql.DB, error) {
