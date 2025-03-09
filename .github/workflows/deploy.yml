@@ -23,7 +23,7 @@ jobs:
         run: docker build  -t go-auth:latest .
 
       - name: Tag docker image
-        run: docker tag go-auth:latest ${{ secrets.DOCKER_USERNAME }}/go-auth:latest
+        run: docker tag go-auth:latest ${{ secrets.DOCKER_USERNAME }}/go-auth-api:latest
 
       - name: Push Docker image to Docker Hub
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/go-auth:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/go-auth-api:latest
