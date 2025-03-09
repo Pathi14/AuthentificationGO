@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pathi14/AuthentificationGO/internal"
@@ -37,5 +38,12 @@ func Run() {
 	}
 
 	fmt.Println("Server is listening on port 8080")
-	router.Run("localhost:8080")
+
+	port := os.Getenv("PORT") // Utilise le port fourni par Render
+
+	if port == "" {
+		port = "8080" // Port par défaut si non défini
+	}
+
+	router.Run("0.0.0.0:" + port) // Écoute sur 0.0.0.0 pour accepter les connexions externes
 }
