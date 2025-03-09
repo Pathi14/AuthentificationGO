@@ -23,15 +23,18 @@ func Run() {
 	userService := user.NewUserService(userRepo)
 	userHandler := user.NewUserHandler(userService)
 
-	//routes accessibles à tous
-	router.GET("/health", internal.Health)
-	router.POST("/register", userHandler.Register)
-	router.POST("/login", user.Login)
-	router.POST("/reset-password", user.UpdatePassword)
+	api := router.Group("/44df37e7-fe2a-404f-917b-399f5c5ffd12")
+	{
+		// Routes accessibles à tous
+		api.GET("/health", internal.Health)
+		api.POST("/register", userHandler.Register)
+		api.POST("/login", user.Login)
+		api.POST("/reset-password", user.UpdatePassword)
 
-	//routes protégées
-	router.POST("/logout", user.Logout)
-	router.GET("/profile", user.Profile)
+		// Routes protégées
+		api.POST("/logout", user.Logout)
+		api.GET("/profile", user.Profile)
+	}
 
 	fmt.Println("Server is listening on port 8080")
 	router.Run("localhost:8080")
