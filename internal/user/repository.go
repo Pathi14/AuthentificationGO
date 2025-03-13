@@ -3,6 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepository struct {
@@ -50,4 +51,27 @@ func (r *UserRepository) GetByEmail(email string) (*User, error) {
 		return nil, err
 	}
 	return &u, nil
+}
+
+
+
+func (r *UserRepository) Login(email, password string) (*User, error) {
+    var u User
+    var hashedPassword string
+    err := r.db.QueryRow("SELECT id, name, email, password FROM users WHERE email = $1", email).
+        Scan(&u.ID, &u.Name, &u.Email, &hashedPassword)
+    if err == sql.ErrNoRows {
+        return nil, fmt.Errorf("invalid email or password")
+    }
+    if err != nil {
+        return nil, err
+    }
+
+    // Compare the hashed password with the provided password
+    err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+    if err != nil {
+        return nil, fmt.Errorf("invalid email or password")
+    }
+
+    return &u, nil
 }

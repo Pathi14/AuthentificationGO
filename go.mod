@@ -4,7 +4,10 @@ go 1.24.0
 
 require github.com/gin-gonic/gin v1.10.0
 
-require github.com/joho/godotenv v1.5.1 // indirect
+require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
+)
 
 require (
 	github.com/bytedance/sonic v1.11.6 // indirect

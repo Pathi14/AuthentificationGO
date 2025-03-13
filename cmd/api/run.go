@@ -29,7 +29,7 @@ func Run() {
 		// Routes accessibles à tous
 		api.GET("/health", internal.Health)
 		api.POST("/register", userHandler.Register)
-		api.POST("/login", user.Login)
+		api.POST("/login",userHandler.Login)
 		api.POST("/reset-password", user.UpdatePassword)
 
 		// Routes protégées
