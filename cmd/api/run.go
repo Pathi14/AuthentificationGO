@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/pathi14/AuthentificationGO/internal"
 	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
+	"github.com/pathi14/AuthentificationGO/internal/middleware"
 	"github.com/pathi14/AuthentificationGO/internal/user"
 )
 
@@ -29,12 +30,15 @@ func Run() {
 		// Routes accessibles à tous
 		api.GET("/health", internal.Health)
 		api.POST("/register", userHandler.Register)
-		api.POST("/login",userHandler.Login)
+		api.POST("/login", userHandler.Login)
 		api.POST("/reset-password", user.UpdatePassword)
 
 		// Routes protégées
-		api.POST("/logout", user.Logout)
-		api.GET("/profile", user.Profile)
+		api.Use(middleware.JWTAuth())
+		{
+			api.POST("/logout", user.Logout)
+			api.GET("/profile", userHandler.Profile)
+		}
 	}
 
 	fmt.Println("Server is listening on port 8080")

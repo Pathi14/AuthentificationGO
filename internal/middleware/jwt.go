@@ -1,13 +1,13 @@
-// internal/middleware/jwt.go
 package middleware
 
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v4" // Importez cette bibliothèque
+	"github.com/golang-jwt/jwt/v4"
 )
 
 // JWTAuth vérifie le token JWT et extrait l'ID utilisateur
@@ -25,13 +25,14 @@ func JWTAuth() gin.HandlerFunc {
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
 
 		// Valider et décoder le token
+		secretKey := os.Getenv("JWT_SECRET")
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Vérifier l'algorithme de signature
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			// Retourner la clé secrète pour la vérification
-			return []byte("votre_clé_secrète"), nil // Stockez cette clé dans une variable d'environnement
+			return []byte(secretKey), nil // Stockez cette clé dans une variable d'environnement
 		})
 
 		if err != nil {

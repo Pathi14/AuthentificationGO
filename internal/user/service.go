@@ -2,11 +2,11 @@ package user
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
-	 "github.com/dgrijalva/jwt-go"
- 
 )
 
 type UserService struct {
@@ -45,24 +45,28 @@ func (s *UserService) Create(u User) error {
 	return s.repo.Create(u)
 }
 
-
 func (s *UserService) Login(email, password string) (string, error) {
-    user, err := s.repo.Login(email, password)
-    if err != nil {
-        return "", err
-    }
+	user, err := s.repo.Login(email, password)
+	if err != nil {
+		return "", err
+	}
 
-   
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "user_id": user.ID,
-        "email":   user.Email,
-        "exp":     time.Now().Add(time.Hour * 72).Unix(),
-    })
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+	})
 
-    tokenString, err := token.SignedString([]byte("secret_key"))
-    if err != nil {
-        return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
-    }
+	secretKey := os.Getenv("JWT_SECRET")
 
-    return tokenString, nil
+	tokenString, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
+	}
+
+	return tokenString, nil
+}
+
+func (s *UserService) GetUserByID(id int) (*User, error) {
+	return s.repo.FindByID(id)
 }
