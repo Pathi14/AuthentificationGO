@@ -2,7 +2,10 @@ package user
 
 import (
 	"fmt"
+	"os"
+	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -40,4 +43,30 @@ func (s *UserService) Create(u User) error {
 	u.Password = string(hashedPassword)
 
 	return s.repo.Create(u)
+}
+
+func (s *UserService) Login(email, password string) (string, error) {
+	user, err := s.repo.Login(email, password)
+	if err != nil {
+		return "", err
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+	})
+
+	secretKey := os.Getenv("JWT_SECRET")
+
+	tokenString, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
+	}
+
+	return tokenString, nil
+}
+
+func (s *UserService) GetUserByID(id int) (*User, error) {
+	return s.repo.FindByID(id)
 }
