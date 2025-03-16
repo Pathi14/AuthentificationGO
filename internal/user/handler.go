@@ -86,7 +86,10 @@ func (h *UserHandler) Profile(c *gin.Context) {
 	user.Password = ""
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":                "User profile",
-		"voici vos informations": user,
+		"message":     "User profile",
+		"email":       user.Email,
+		"name":        user.Name,
+		"lastName":    user.Age,
+		"phoneNumber": user.MobileNumber,
 	})
 }
