@@ -36,8 +36,8 @@ func Run() {
 		// Routes protégées
 		api.Use(middleware.JWTAuth())
 		{
+			api.GET("/me", userHandler.Profile)
 			api.POST("/logout", user.Logout)
-			api.GET("/profile", userHandler.Profile)
 		}
 	}
 
