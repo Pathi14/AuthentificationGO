@@ -47,6 +47,45 @@ func UpdatePassword(c *gin.Context) {
 	})
 }
 
+func  ForgotPassword(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.ForgotPassword(req.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Envoi du lien de réinitialisation du mot de passe"})
+}
+
+func  ResetPassword(c *gin.Context) {
+	var req struct {
+		Token       string `json:"token"`
+		NewPassword string `json:"new_password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	err := h.service.ResetPassword(req.Token, req.NewPassword)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Le mot de passe a été réinitialisé avec succès"})
+}
+
 func Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"status":  "OK",

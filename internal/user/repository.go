@@ -51,3 +51,9 @@ func (r *UserRepository) GetByEmail(email string) (*User, error) {
 	}
 	return &u, nil
 }
+
+func (r *UserRepository) UpdatePassword(email, hashedPassword string) error {
+	_, err := r.db.Exec("UPDATE users SET password = $1 WHERE email = $2", hashedPassword, email)
+	return err
+}
+
