@@ -31,9 +31,9 @@ func Run() {
 		api.POST("/register", userHandler.Register)
 		api.POST("/login",userHandler.Login)
 		api.POST("/reset-password", user.UpdatePassword)
-
-		// Routes protégées
-		api.POST("/logout", user.Logout)
+		protected := api.Group("/") 
+        protected.Use(internal.AuthMiddleware()) 
+        protected.POST("/logout", userHandler.Logout)
 		api.GET("/profile", user.Profile)
 	}
 

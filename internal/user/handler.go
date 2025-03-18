@@ -3,6 +3,7 @@ package user
 import (
 	"net/http"
 
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -63,11 +64,11 @@ func UpdatePassword(c *gin.Context) {
 	})
 }
 
-func Logout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "OK",
-		"message": "User logged out",
-	})
+func (h *UserHandler) Logout(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+        "status":  "OK",
+        "message": "User logged out",
+    })
 }
 
 func Profile(c *gin.Context) {
@@ -76,3 +77,4 @@ func Profile(c *gin.Context) {
 		"message": "User profile",
 	})
 }
+
