@@ -2,11 +2,11 @@ package user
 
 import (
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
-	 "github.com/dgrijalva/jwt-go"
- 
 )
 var secretKey = []byte("my-very-secure-secret-key")
 type UserService struct {
@@ -46,10 +46,11 @@ func (s *UserService) Create(u User) error {
 }
 
 func (s *UserService) Login(email, password string) (string, error) {
-    user, err := s.repo.Login(email, password)
-    if err != nil {
-        return "", err
-    }
+	user, err := s.repo.Login(email, password)
+	if err != nil {
+		return "", err
+	}
+
 
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
         "user_id": user.ID,
@@ -62,5 +63,15 @@ func (s *UserService) Login(email, password string) (string, error) {
         return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
     }
 
-    return tokenString, nil
+
+	tokenString, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
+	}
+
+	return tokenString, nil
+}
+
+func (s *UserService) GetUserByID(id int) (*User, error) {
+	return s.repo.FindByID(id)
 }
