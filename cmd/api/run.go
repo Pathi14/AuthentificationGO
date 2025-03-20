@@ -3,6 +3,7 @@ package api
 import (
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pathi14/AuthentificationGO/internal"
@@ -23,16 +24,25 @@ func Run() {
 	userService := user.NewUserService(userRepo)
 	userHandler := user.NewUserHandler(userService)
 
-	//routes accessibles à tous
-	router.GET("/health", internal.Health)
-	router.POST("/register", userHandler.Register)
-	router.POST("/login", user.Login)
-	router.POST("/reset-password", user.UpdatePassword)
+	api := router.Group("/44df37e7-fe2a-404f-917b-399f5c5ffd12")
+	{
+		// Routes accessibles à tous
+		api.GET("/health", internal.Health)
+		api.POST("/register", userHandler.Register)
+		api.POST("/login", user.Login)
+		api.POST("/reset-password", user.UpdatePassword)
+		api.POST("/forget-password", userHandler.ForgotPassword)
 
-	//routes protégées
-	router.POST("/logout", user.Logout)
-	router.GET("/profile", user.Profile)
+		
+	}
 
 	fmt.Println("Server is listening on port 8080")
-	router.Run("localhost:8080")
+
+	port := os.Getenv("PORT") // Utilise le port fourni par Render
+
+	if port == "" {
+		port = "8080" // Port par défaut si non défini
+	}
+
+	router.Run("0.0.0.0:" + port) // Écoute sur 0.0.0.0 pour accepter les connexions externes
 }
