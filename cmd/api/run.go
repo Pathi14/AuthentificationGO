@@ -46,7 +46,7 @@ func Run() {
 	port := os.Getenv("PORT") // Utilise le port fourni par Render
 
 	if port == "" {
-		port = "8888" // Port par défaut si non défini
+		port = "8080" // Port par défaut si non défini
 	}
 
 	router.Run("0.0.0.0:" + port) // Écoute sur 0.0.0.0 pour accepter les connexions externes
