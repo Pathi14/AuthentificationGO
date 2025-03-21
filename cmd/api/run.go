@@ -32,10 +32,13 @@ func Run() {
 		api.POST("/register", userHandler.Register)
 		api.POST("/login", userHandler.Login)
 		api.POST("/reset-password", user.UpdatePassword)
-		protected := api.Group("/") 
-        protected.Use(internal.AuthMiddleware()) 
-        protected.POST("/logout", userHandler.Logout)
-		api.GET("/profile", user.Profile)
+
+		// Routes protégées
+		api.Use(middleware.JWTAuth())
+		{
+			api.GET("/me", userHandler.Profile)
+			api.POST("/logout", userHandler.Logout)
+		}
 	}
 
 	fmt.Println("Server is listening on port 8080")
@@ -43,7 +46,7 @@ func Run() {
 	port := os.Getenv("PORT") // Utilise le port fourni par Render
 
 	if port == "" {
-		port = "8080" // Port par défaut si non défini
+		port = "8888" // Port par défaut si non défini
 	}
 
 	router.Run("0.0.0.0:" + port) // Écoute sur 0.0.0.0 pour accepter les connexions externes

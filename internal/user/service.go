@@ -8,7 +8,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/bcrypt"
 )
-var secretKey = []byte("my-very-secure-secret-key")
+
 type UserService struct {
 	repo *UserRepository
 }
@@ -51,18 +51,13 @@ func (s *UserService) Login(email, password string) (string, error) {
 		return "", err
 	}
 
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"user_id": user.ID,
+		"email":   user.Email,
+		"exp":     time.Now().Add(time.Hour * 72).Unix(),
+	})
 
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-        "user_id": user.ID,
-        "email":   user.Email,
-        "exp":     time.Now().Add(time.Hour * 72).Unix(),
-    })
-
-    tokenString, err := token.SignedString(secretKey) // Utilisez la même clé secrète
-    if err != nil {
-        return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
-    }
-
+	secretKey := os.Getenv("JWT_SECRET")
 
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
