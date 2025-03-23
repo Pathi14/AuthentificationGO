@@ -67,7 +67,6 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 		return nil, err
 	}
 
-	// Compare the hashed password with the provided password
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		return nil, fmt.Errorf("invalid email or password")
@@ -87,4 +86,12 @@ func (r *UserRepository) FindByID(id int) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *UserRepository) ResetPassword(email, hashedPassword string) error {
+
+	_, err := r.db.Exec("UPDATE users SET password = $1 WHERE email = $2", hashedPassword, email)
+
+	return err
+
 }

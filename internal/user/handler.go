@@ -2,8 +2,9 @@ package user
 
 import (
 	"net/http"
-	"golang.org/x/crypto/bcrypt"
+
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -17,7 +18,10 @@ func NewUserHandler(service *UserService) *UserHandler {
 func (h *UserHandler) Register(c *gin.Context) {
 	var u User
 	if err := c.ShouldBindJSON(&u); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Données d'entrée invalides",
+			"details": err.Error(),
+		})
 		return
 	}
 
@@ -56,37 +60,27 @@ func (h *UserHandler) Login(c *gin.Context) {
 	})
 }
 
-func UpdatePassword(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "OK",
-		"message": "User password updated",
-	})
-}
-
 func (h *UserHandler) ForgotPassword(c *gin.Context) {
-    var request struct {
-        Email string `json:"email" binding:"required,email"`
-    }
- 
-    
-    if err := c.ShouldBindJSON(&request); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-        return
-    }
- 
-    
-    token, err := h.service.SendPasswordResetToken(request.Email)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
- 
-    
-    c.JSON(http.StatusOK, gin.H{
-        "message": "Password reset instructions sent to your email",
-        "email":   request.Email,
-        "token":   token, 
-    })
+	var request struct {
+		Email string `json:"email" binding:"required,email"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := h.service.SendPasswordResetToken(request.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Password reset instructions sent to your email",
+		"email":   request.Email,
+		"token":   token,
+	})
 }
 
 func (h *UserHandler) ResetPassword(c *gin.Context) {
@@ -120,7 +114,6 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Password reset successfully",
-		"NewPassword":   request.NewPassword,
 	})
 }
 

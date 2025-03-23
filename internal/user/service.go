@@ -4,18 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/dgrijalva/jwt-go"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
 	repo        *UserRepository
 	resetTokens map[string]time.Time
-	tokenMutex  sync.Mutex
 	tokenExpiry time.Duration
 }
 
@@ -28,14 +25,8 @@ func NewUserService(repo *UserRepository) *UserService {
 }
 
 func (s *UserService) Create(u User) error {
-	if u.Name == "" {
-		return fmt.Errorf("name cannot be empty")
-	}
-	if u.Email == "" {
-		return fmt.Errorf("email cannot be empty")
-	}
-	if u.Password == "" {
-		return fmt.Errorf("password cannot be empty")
+	if err := u.Validate(); err != nil {
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	existingUser, err := s.repo.GetByEmail(u.Email)
@@ -67,7 +58,9 @@ func (s *UserService) Login(email, password string) (string, error) {
 		"exp":     time.Now().Add(time.Hour * 72).Unix(),
 	})
 
-	tokenString, err := token.SignedString([]byte("secret_key"))
+	secretKey := os.Getenv("JWT_SECRET")
+
+	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
 		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
 	}
@@ -164,28 +157,6 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 	}
 
 	return nil
-}
-
-func (s *UserService) Login(email, password string) (string, error) {
-	user, err := s.repo.Login(email, password)
-	if err != nil {
-		return "", err
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
-	})
-
-	secretKey := os.Getenv("JWT_SECRET")
-
-	tokenString, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
-	}
-
-	return tokenString, nil
 }
 
 func (s *UserService) GetUserByID(id int) (*User, error) {
