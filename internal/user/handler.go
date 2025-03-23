@@ -29,6 +29,7 @@ func (h *UserHandler) Register(c *gin.Context) {
 	err := h.service.Create(u)
 	if err != nil {
 		if strings.Contains(err.Error(), "email already exists") ||
+			strings.Contains(err.Error(), "email already in use") ||
 			strings.Contains(err.Error(), "duplicate key") ||
 			strings.Contains(err.Error(), "unique constraint") {
 			c.JSON(http.StatusConflict, gin.H{"error": "Cet email est déjà utilisé"})
