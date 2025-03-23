@@ -2,6 +2,7 @@ package user
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -25,7 +26,14 @@ func (h *UserHandler) Register(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Create(u); err != nil {
+	err := h.service.Create(u)
+	if err != nil {
+		if strings.Contains(err.Error(), "email already exists") ||
+			strings.Contains(err.Error(), "duplicate key") ||
+			strings.Contains(err.Error(), "unique constraint") {
+			c.JSON(http.StatusConflict, gin.H{"error": "Cet email est déjà utilisé"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
