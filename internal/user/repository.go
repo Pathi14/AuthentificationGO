@@ -61,7 +61,7 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 	err := r.db.QueryRow("SELECT id, name, email, password FROM users WHERE email = $1", email).
 		Scan(&u.ID, &u.Name, &u.Email, &hashedPassword)
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, fmt.Errorf("user not found")
 	}
 	if err != nil {
 		return nil, err
@@ -69,7 +69,7 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
-		return nil, fmt.Errorf("invalid email or password")
+		return nil, fmt.Errorf("invalid password")
 	}
 
 	return &u, nil

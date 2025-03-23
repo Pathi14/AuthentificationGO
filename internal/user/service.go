@@ -1,9 +1,11 @@
 package user
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -47,9 +49,22 @@ func (s *UserService) Create(u User) error {
 }
 
 func (s *UserService) Login(email, password string) (string, error) {
+	if email == "" {
+		return "", fmt.Errorf("validation error: email is required")
+	}
+	if password == "" {
+		return "", fmt.Errorf("validation error: password is required")
+	}
+
 	user, err := s.repo.Login(email, password)
 	if err != nil {
-		return "", err
+		if err == sql.ErrNoRows || strings.Contains(err.Error(), "user not found") {
+			return "", fmt.Errorf("authentication error: user not found")
+		}
+		if strings.Contains(err.Error(), "invalid password") || strings.Contains(err.Error(), "password does not match") {
+			return "", fmt.Errorf("authentication error: invalid credentials")
+		}
+		return "", fmt.Errorf("internal error: %v", err)
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -59,6 +74,9 @@ func (s *UserService) Login(email, password string) (string, error) {
 	})
 
 	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		return "", fmt.Errorf("internal error: JWT_SECRET not configured")
+	}
 
 	tokenString, err := token.SignedString([]byte(secretKey))
 	if err != nil {
@@ -136,11 +154,21 @@ func sendResetEmail(email, token string) error {
 	fmt.Printf("To: %s\n", email)
 	fmt.Printf("Subject: Password Reset Request\n")
 	fmt.Printf("Body: Click the link below to reset your password:\n")
-	fmt.Printf("https://your-app.com/reset-password?token=%s\n", token)
+	fmt.Printf("https://go-auth-api-latest.onrender.com/44df37e7-fe2a-404f-917b-399f5c5ffd12/reset-password?token=%s\n", token)
 	return nil
 }
 
 func (s *UserService) ResetPassword(token, newPassword string) error {
+	if token == "" {
+		return fmt.Errorf("validation error: token is required")
+	}
+	if newPassword == "" {
+		return fmt.Errorf("validation error: new password is required")
+	}
+	if len(newPassword) < 8 {
+		return fmt.Errorf("validation error: password must be at least 8 characters long")
+	}
+
 	email, err := s.ValidateResetToken(token)
 	if err != nil {
 		return errors.New("invalid or expired token")

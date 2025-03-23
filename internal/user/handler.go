@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -28,13 +27,16 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	err := h.service.Create(u)
 	if err != nil {
-		if strings.Contains(err.Error(), "email already exists") ||
-			strings.Contains(err.Error(), "email already in use") ||
-			strings.Contains(err.Error(), "duplicate key") ||
-			strings.Contains(err.Error(), "unique constraint") {
+		if strings.Contains(err.Error(), "validation error") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if strings.Contains(err.Error(), "email already in use") {
 			c.JSON(http.StatusConflict, gin.H{"error": "Cet email est déjà utilisé"})
 			return
 		}
+
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -53,13 +55,27 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Données d'entrée invalides",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	token, err := h.service.Login(credentials.Email, credentials.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+
+		if strings.Contains(err.Error(), "validation error") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if strings.Contains(err.Error(), "authentication error") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Une erreur interne est survenue"})
 		return
 	}
 
@@ -99,25 +115,26 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Données d'entrée invalides",
+			"details": err.Error(),
+		})
 		return
 	}
 
-	email, err := h.service.ValidateResetToken(request.Token)
+	err := h.service.ResetPassword(request.Token, request.NewPassword)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-		return
-	}
+		if strings.Contains(err.Error(), "validation error") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(request.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
-		return
-	}
+		if strings.Contains(err.Error(), "authentication error") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
 
-	err = h.service.repo.ResetPassword(email, string(hashedPassword))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to password"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Une erreur système est survenue"})
 		return
 	}
 
