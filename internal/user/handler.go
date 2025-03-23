@@ -33,10 +33,26 @@ func (h *UserHandler) Register(c *gin.Context) {
 	})
 }
 
-func Login(c *gin.Context) {
+func (h *UserHandler) Login(c *gin.Context) {
+	var credentials struct {
+		Email    string `json:"email" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&credentials); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	token, err := h.service.Login(credentials.Email, credentials.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"status":  "OK",
-		"message": "User logged in",
+		"message": "User logged in successfully",
+		"token":   token,
 	})
 }
 
@@ -115,9 +131,26 @@ func Logout(c *gin.Context) {
 	})
 }
 
-func Profile(c *gin.Context) {
+func (h *UserHandler) Profile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	user, err := h.service.GetUserByID(userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		return
+	}
+
+	user.Password = ""
+
 	c.JSON(http.StatusOK, gin.H{
-		"status":  "OK",
-		"message": "User profile",
+		"message":     "User profile",
+		"email":       user.Email,
+		"name":        user.Name,
+		"lastName":    user.Age,
+		"phoneNumber": user.MobileNumber,
 	})
 }

@@ -2,8 +2,9 @@ package user
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
-	
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -66,7 +67,7 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 		return nil, err
 	}
 
-	
+	// Compare the hashed password with the provided password
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		return nil, fmt.Errorf("invalid email or password")
@@ -75,8 +76,15 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 	return &u, nil
 }
 
-func (r *UserRepository) ResetPassword(email, hashedPassword string) error {
-	_, err := r.db.Exec("UPDATE users SET password = $1 WHERE email = $2", hashedPassword, email)
-	return err
+func (r *UserRepository) FindByID(id int) (*User, error) {
+	var user User
+	query := "SELECT id, name, age, mobile_number, email FROM users WHERE id = $1"
+	err := r.db.QueryRow(query, id).Scan(&user.ID, &user.Name, &user.Age, &user.MobileNumber, &user.Email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, errors.New("user not found")
+		}
+		return nil, err
+	}
+	return &user, nil
 }
-
