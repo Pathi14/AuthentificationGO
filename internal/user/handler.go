@@ -112,16 +112,11 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Password reset successfully",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 func Logout(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "OK",
-		"message": "User logged out",
-	})
+	c.Status(http.StatusNoContent)
 }
 
 func (h *UserHandler) Profile(c *gin.Context) {
