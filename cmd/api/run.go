@@ -30,9 +30,8 @@ func Run() {
 		api.GET("/health", internal.Health)
 		api.POST("/register", userHandler.Register)
 		api.POST("/login", user.Login)
-		api.POST("/reset-password", user.UpdatePassword)
+		api.POST("/reset-password", userHandler.ResetPassword)
 		api.POST("/forget-password", userHandler.ForgotPassword)
-
 		
 	}
 

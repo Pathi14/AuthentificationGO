@@ -3,7 +3,7 @@ package user
 import (
 	"database/sql"
 	"fmt"
-
+	
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -75,7 +75,7 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 	return &u, nil
 }
 
-func (r *UserRepository) UpdatePassword(email, hashedPassword string) error {
+func (r *UserRepository) ResetPassword(email, hashedPassword string) error {
 	_, err := r.db.Exec("UPDATE users SET password = $1 WHERE email = $2", hashedPassword, email)
 	return err
 }

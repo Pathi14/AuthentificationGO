@@ -154,3 +154,25 @@ func sendResetEmail(email, token string) error {
     fmt.Printf("https://your-app.com/reset-password?token=%s\n", token)
     return nil
 }
+
+
+func (s *UserService) ResetPassword(token, newPassword string) error {
+    email, err := s.ValidateResetToken(token)
+    if err != nil {
+        return errors.New("invalid or expired token")
+    }
+
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+    if err != nil {
+        return errors.New("error hashing password")
+    }
+
+    err = s.repo.ResetPassword(email, string(hashedPassword))
+    if err != nil {
+        return errors.New("error password")
+    }
+
+    return nil
+}
+
+
