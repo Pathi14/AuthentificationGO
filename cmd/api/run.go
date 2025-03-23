@@ -31,7 +31,8 @@ func Run() {
 		api.GET("/health", internal.Health)
 		api.POST("/register", userHandler.Register)
 		api.POST("/login", userHandler.Login)
-		api.POST("/reset-password", user.UpdatePassword)
+		api.POST("/forgot-password", userHandler.ForgotPassword)
+		api.POST("/reset-password", userHandler.ResetPassword)
 
 		// Routes protégées
 		api.Use(middleware.JWTAuth())

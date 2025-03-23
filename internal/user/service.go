@@ -1,6 +1,7 @@
 package user
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -10,22 +11,22 @@ import (
 )
 
 type UserService struct {
-	repo *UserRepository
+	repo        *UserRepository
+	resetTokens map[string]time.Time
+	tokenExpiry time.Duration
 }
 
 func NewUserService(repo *UserRepository) *UserService {
-	return &UserService{repo: repo}
+	return &UserService{
+		repo:        repo,
+		resetTokens: make(map[string]time.Time),
+		tokenExpiry: 15 * time.Minute,
+	}
 }
 
 func (s *UserService) Create(u User) error {
-	if u.Name == "" {
-		return fmt.Errorf("name cannot be empty")
-	}
-	if u.Email == "" {
-		return fmt.Errorf("email cannot be empty")
-	}
-	if u.Password == "" {
-		return fmt.Errorf("password cannot be empty")
+	if err := u.Validate(); err != nil {
+		return fmt.Errorf("validation error: %w", err)
 	}
 
 	existingUser, err := s.repo.GetByEmail(u.Email)
@@ -65,6 +66,97 @@ func (s *UserService) Login(email, password string) (string, error) {
 	}
 
 	return tokenString, nil
+}
+
+func (s *UserService) SendPasswordResetToken(email string) (string, error) {
+
+	user, err := s.repo.GetByEmail(email)
+	if err != nil {
+		return "", errors.New("user not found")
+	}
+
+	resetToken, err := generateResetToken(user.Email)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate reset token: %v", err)
+	}
+
+	err = sendResetEmail(user.Email, resetToken)
+	if err != nil {
+		return "", errors.New("failed to send reset email")
+	}
+
+	return resetToken, nil
+}
+
+func generateResetToken(email string) (string, error) {
+
+	secretKey := []byte("secret_key")
+
+	claims := jwt.MapClaims{
+		"email": email,
+		"exp":   time.Now().Add(15 * time.Minute).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString(secretKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate token: %v", err)
+	}
+
+	return tokenString, nil
+}
+
+func (s *UserService) ValidateResetToken(token string) (string, error) {
+
+	secretKey := []byte("secret_key")
+
+	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return secretKey, nil
+	})
+
+	if err != nil {
+		return "", fmt.Errorf("invalid token: %v", err)
+	}
+
+	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
+		email := claims["email"].(string)
+		return email, nil
+	}
+
+	return "", errors.New("invalid token")
+}
+
+func sendResetEmail(email, token string) error {
+
+	fmt.Printf("To: %s\n", email)
+	fmt.Printf("Subject: Password Reset Request\n")
+	fmt.Printf("Body: Click the link below to reset your password:\n")
+	fmt.Printf("https://your-app.com/reset-password?token=%s\n", token)
+	return nil
+}
+
+func (s *UserService) ResetPassword(token, newPassword string) error {
+	email, err := s.ValidateResetToken(token)
+	if err != nil {
+		return errors.New("invalid or expired token")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("error hashing password")
+	}
+
+	err = s.repo.ResetPassword(email, string(hashedPassword))
+	if err != nil {
+		return errors.New("error password")
+	}
+
+	return nil
 }
 
 func (s *UserService) GetUserByID(id int) (*User, error) {
