@@ -43,15 +43,15 @@ func (h *UserHandler) Register(c *gin.Context) {
 
 	u.Password = ""
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "User added successfully",
+		"message": "Utilisateur enregistré avec succès",
 		"user":    u,
 	})
 }
 
 func (h *UserHandler) Login(c *gin.Context) {
 	var credentials struct {
-		Email    string `json:"email" binding:"required"`
-		Password string `json:"password" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
+		Password string `json:"password" binding:"required,min=8"`
 	}
 
 	if err := c.ShouldBindJSON(&credentials); err != nil {
@@ -71,7 +71,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		}
 
 		if strings.Contains(err.Error(), "authentication error") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Email ou mot de passe incorrect"})
 			return
 		}
 
@@ -80,7 +80,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "User logged in successfully",
+		"message": "Connexion réussie",
 		"token":   token,
 	})
 }
@@ -91,18 +91,33 @@ func (h *UserHandler) ForgotPassword(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Données d'entrée invalides",
+			"details": err.Error(),
+		})
 		return
 	}
 
 	token, err := h.service.SendPasswordResetToken(request.Email)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		if strings.Contains(err.Error(), "user not found") {
+			c.JSON(http.StatusOK, gin.H{
+				"message": "Si votre email est enregistré, vous recevrez un lien de réinitialisation.",
+			})
+			return
+		}
+
+		if strings.Contains(err.Error(), "validation error") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Une erreur est survenue lors de l'envoi de l'email"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Password reset instructions sent to your email",
+		"message": "Les instructions pour la mise à jour de votre password ont été envoyés à votre email",
 		"email":   request.Email,
 		"token":   token,
 	})
@@ -129,8 +144,9 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 			return
 		}
 
-		if strings.Contains(err.Error(), "authentication error") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		if strings.Contains(err.Error(), "authentication error") ||
+			strings.Contains(err.Error(), "invalid or expired token") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide ou expiré"})
 			return
 		}
 
@@ -141,30 +157,48 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-func Logout(c *gin.Context) {
+func (h *UserHandler) Logout(c *gin.Context) {
+	token := c.GetHeader("Authorization")
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token manquant"})
+		return
+	}
+
+	token = strings.TrimPrefix(token, "Bearer ")
+
+	if err := h.service.Logout(token); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Déconnexion échouée"})
+		return
+	}
+
 	c.Status(http.StatusNoContent)
 }
 
 func (h *UserHandler) Profile(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Non autorisé"})
 		return
 	}
 
 	user, err := h.service.GetUserByID(userID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "User not found"})
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Utilisateur non trouvé"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Une erreur est survenue lors de la récupération du profil"})
 		return
 	}
 
 	user.Password = ""
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":     "User profile",
+		"message":     "Profil de l'utilisateur",
 		"email":       user.Email,
 		"name":        user.Name,
-		"lastName":    user.Age,
+		"age":         user.Age,
 		"phoneNumber": user.MobileNumber,
 	})
 }

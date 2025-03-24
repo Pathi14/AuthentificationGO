@@ -19,17 +19,7 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 func (r *UserRepository) Create(user User) error {
 	fmt.Println("Attempting to create user:", user.Email)
 
-	existingUser, err := r.GetByEmail(user.Email)
-	if err != nil {
-		fmt.Println("Error checking existing user:", err)
-		return err
-	}
-	if existingUser != nil {
-		fmt.Println("User already exists:", user.Email)
-		return fmt.Errorf("user with email %s already exists", user.Email)
-	}
-
-	_, err = r.db.Exec(
+	_, err := r.db.Exec(
 		"INSERT INTO users (name, age, mobile_number, email, password) VALUES ($1, $2, $3, $4, $5)",
 		user.Name, user.Age, user.MobileNumber, user.Email, user.Password)
 

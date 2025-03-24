@@ -8,7 +8,7 @@ type User struct {
 	Age          int    `json:"age" binding:"omitempty,gt=0"`
 	MobileNumber string `json:"mobile_number"`
 	Email        string `json:"email" binding:"required,email"`
-	Password     string `json:"password,omitempty"`
+	Password     string `json:"password,omitempty" binding:"required,min=8"`
 }
 
 func (u *User) Validate() error {

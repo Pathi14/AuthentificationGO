@@ -38,7 +38,7 @@ func Run() {
 		api.Use(middleware.JWTAuth())
 		{
 			api.GET("/me", userHandler.Profile)
-			api.POST("/logout", user.Logout)
+			api.POST("/logout", userHandler.Logout)
 		}
 	}
 

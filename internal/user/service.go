@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/pathi14/AuthentificationGO/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,8 +33,8 @@ func (s *UserService) Create(u User) error {
 	}
 
 	existingUser, err := s.repo.GetByEmail(u.Email)
-	if err != nil {
-		return fmt.Errorf("error checking user existence: %v", err)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return fmt.Errorf("internal error: %v", err)
 	}
 	if existingUser != nil {
 		return fmt.Errorf("email already in use")
@@ -45,7 +46,13 @@ func (s *UserService) Create(u User) error {
 	}
 	u.Password = string(hashedPassword)
 
-	return s.repo.Create(u)
+	if err := s.repo.Create(u); err != nil {
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+			return fmt.Errorf("email already in use")
+		}
+		return fmt.Errorf("internal error: %v", err)
+	}
+	return nil
 }
 
 func (s *UserService) Login(email, password string) (string, error) {
@@ -86,29 +93,60 @@ func (s *UserService) Login(email, password string) (string, error) {
 	return tokenString, nil
 }
 
+func (s *UserService) Logout(tokenString string) error {
+	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return errors.New("invalid token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return errors.New("malformed token")
+	}
+
+	expirationTime := time.Unix(int64(claims["exp"].(float64)), 0)
+
+	middleware.AddToBlacklist(tokenString, expirationTime)
+
+	return nil
+}
+
 func (s *UserService) SendPasswordResetToken(email string) (string, error) {
+	if email == "" {
+		return "", fmt.Errorf("validation error: email is required")
+	}
 
 	user, err := s.repo.GetByEmail(email)
 	if err != nil {
-		return "", errors.New("user not found")
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", fmt.Errorf("user not found")
+		}
+		return "", fmt.Errorf("internal error: %v", err)
+	}
+
+	if user == nil {
+		return "", fmt.Errorf("user not found")
 	}
 
 	resetToken, err := generateResetToken(user.Email)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate reset token: %v", err)
+		return "", fmt.Errorf("internal error: failed to generate reset token: %v", err)
 	}
 
 	err = sendResetEmail(user.Email, resetToken)
 	if err != nil {
-		return "", errors.New("failed to send reset email")
+		return "", fmt.Errorf("internal error: failed to send reset email: %v", err)
 	}
 
 	return resetToken, nil
 }
 
 func generateResetToken(email string) (string, error) {
+	if email == "" {
+		return "", errors.New("email cannot be empty")
+	}
 
-	secretKey := []byte("secret_key")
+	secretKey := []byte(os.Getenv("JWT_SECRET"))
 
 	claims := jwt.MapClaims{
 		"email": email,
@@ -126,8 +164,11 @@ func generateResetToken(email string) (string, error) {
 }
 
 func (s *UserService) ValidateResetToken(token string) (string, error) {
+	if token == "" {
+		return "", fmt.Errorf("authentication error: token is required")
+	}
 
-	secretKey := []byte("secret_key")
+	secretKey := []byte(os.Getenv("JWT_SECRET"))
 
 	parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
 
@@ -138,18 +179,22 @@ func (s *UserService) ValidateResetToken(token string) (string, error) {
 	})
 
 	if err != nil {
-		return "", fmt.Errorf("invalid token: %v", err)
+		return "", fmt.Errorf("authentication error: invalid token: %v", err)
 	}
 
 	if claims, ok := parsedToken.Claims.(jwt.MapClaims); ok && parsedToken.Valid {
-		email := claims["email"].(string)
-		return email, nil
+		if email, ok := claims["email"].(string); ok {
+			return email, nil
+		}
+		return "", fmt.Errorf("authentication error: invalid token structure")
 	}
-
-	return "", errors.New("invalid token")
+	return "", fmt.Errorf("authentication error: invalid token")
 }
 
 func sendResetEmail(email, token string) error {
+	if email == "" || token == "" {
+		return errors.New("email and token are required")
+	}
 
 	fmt.Printf("To: %s\n", email)
 	fmt.Printf("Subject: Password Reset Request\n")
@@ -171,22 +216,38 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 
 	email, err := s.ValidateResetToken(token)
 	if err != nil {
-		return errors.New("invalid or expired token")
+		return fmt.Errorf("authentication error: %v", err)
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
-		return errors.New("error hashing password")
+		return fmt.Errorf("internal error: failed to hash password: %v", err)
 	}
 
 	err = s.repo.ResetPassword(email, string(hashedPassword))
 	if err != nil {
-		return errors.New("error password")
+		return fmt.Errorf("internal error: failed to update password: %v", err)
 	}
 
 	return nil
 }
 
 func (s *UserService) GetUserByID(id int) (*User, error) {
-	return s.repo.FindByID(id)
+	if id <= 0 {
+		return nil, fmt.Errorf("validation error: invalid user ID")
+	}
+
+	user, err := s.repo.FindByID(id)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("not found: user with ID %d does not exist", id)
+		}
+		return nil, fmt.Errorf("internal error: %v", err)
+	}
+
+	if user == nil {
+		return nil, fmt.Errorf("not found: user with ID %d does not exist", id)
+	}
+
+	return user, nil
 }
