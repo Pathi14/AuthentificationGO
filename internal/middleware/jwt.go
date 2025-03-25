@@ -1,21 +1,19 @@
 package middleware
 
 import (
+	"database/sql"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
 )
 
-var (
-	tokenBlacklist = make(map[string]time.Time)
-	mu             sync.Mutex
-)
+const TokenExpirationDuration = 2 * time.Hour
 
 // JWTAuth vérifie le token JWT et extrait l'ID utilisateur
 func JWTAuth() gin.HandlerFunc {
@@ -30,7 +28,7 @@ func JWTAuth() gin.HandlerFunc {
 
 		// Format Bearer token
 		tokenString := strings.Replace(authHeader, "Bearer ", "", 1)
-		if isTokenBlacklisted(tokenString) {
+		if IsTokenBlacklisted(tokenString) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalid or expired"})
 			c.Abort()
 			return
@@ -55,7 +53,19 @@ func JWTAuth() gin.HandlerFunc {
 
 		// Extraire l'ID utilisateur du token
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			// Convertir l'ID en int
+			exp, ok := claims["exp"].(float64)
+			if !ok {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token expiration"})
+				c.Abort()
+				return
+			}
+			// Vérifie si le token est expiré
+			expirationTime := time.Unix(int64(exp), 0)
+			if time.Now().After(expirationTime) {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token has expired"})
+				c.Abort()
+				return
+			}
 			userIDFloat, ok := claims["user_id"].(float64)
 			if !ok {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID in token"})
@@ -65,7 +75,7 @@ func JWTAuth() gin.HandlerFunc {
 
 			userID := int(userIDFloat)
 			c.Set("userID", userID) // Stocke l'ID utilisateur dans le contexte
-			c.Next()                // Continue vers le handler suivant
+			c.Next()
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 			c.Abort()
@@ -74,36 +84,35 @@ func JWTAuth() gin.HandlerFunc {
 	}
 }
 
-func AddToBlacklist(token string, expiration time.Time) {
-	mu.Lock()
-	defer mu.Unlock()
-	tokenBlacklist[token] = expiration
-}
-
-func isTokenBlacklisted(token string) bool {
-	mu.Lock()
-	defer mu.Unlock()
-	expiration, exists := tokenBlacklist[token]
-	if !exists {
-		return false
+func AddToBlacklist(db *sql.DB, token string, expiration time.Time) error {
+	_, err := db.Exec("INSERT INTO blacklisted_tokens (token, expiration) VALUES ($1, $2)", token, expiration)
+	if err != nil {
+		return fmt.Errorf("failed to add token to blacklist: %w", err)
 	}
-	if time.Now().After(expiration) {
-		delete(tokenBlacklist, token)
-		return false
-	}
-	return true
+	return nil
 }
 
 func IsTokenBlacklisted(token string) bool {
-	mu.Lock()
-	defer mu.Unlock()
-	expiration, exists := tokenBlacklist[token]
-	if !exists {
+	db, err := database.ConnectDB()
+	if err != nil {
+		return true
+	}
+	defer db.Close()
+
+	var expiration time.Time
+	err = db.QueryRow("SELECT expiration FROM blacklisted_tokens WHERE token = $1", token).Scan(&expiration)
+
+	if err != nil {
 		return false
 	}
+
 	if time.Now().After(expiration) {
-		delete(tokenBlacklist, token) // Nettoyer les tokens expirés
+		_, err := db.Exec("DELETE FROM blacklisted_tokens WHERE token = $1", token)
+		if err != nil {
+			return true
+		}
 		return false
 	}
+
 	return true
 }

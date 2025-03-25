@@ -9,20 +9,19 @@ import (
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
+	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
 	"github.com/pathi14/AuthentificationGO/internal/middleware"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService struct {
 	repo        *UserRepository
-	resetTokens map[string]time.Time
 	tokenExpiry time.Duration
 }
 
 func NewUserService(repo *UserRepository) *UserService {
 	return &UserService{
 		repo:        repo,
-		resetTokens: make(map[string]time.Time),
 		tokenExpiry: 15 * time.Minute,
 	}
 }
@@ -94,6 +93,12 @@ func (s *UserService) Login(email, password string) (string, error) {
 }
 
 func (s *UserService) Logout(tokenString string) error {
+	db, err := database.ConnectDB()
+	if err != nil {
+		return fmt.Errorf("erreur de connexion à la base de données : %v", err)
+	}
+	defer db.Close()
+
 	token, _, err := new(jwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
 		return errors.New("invalid token")
@@ -106,12 +111,16 @@ func (s *UserService) Logout(tokenString string) error {
 
 	expirationTime := time.Unix(int64(claims["exp"].(float64)), 0)
 
-	middleware.AddToBlacklist(tokenString, expirationTime)
-
-	return nil
+	return middleware.AddToBlacklist(db, tokenString, expirationTime)
 }
 
 func (s *UserService) ResetPassword(token, newPassword string) error {
+	db, err := database.ConnectDB()
+	if err != nil {
+		return fmt.Errorf("erreur de connexion à la base de données : %v", err)
+	}
+	defer db.Close()
+
 	if token == "" {
 		return fmt.Errorf("validation error: token is required")
 	}
@@ -142,9 +151,7 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 	}
 
 	expirationTime := time.Now().Add(s.tokenExpiry)
-	middleware.AddToBlacklist(token, expirationTime)
-
-	return nil
+	return middleware.AddToBlacklist(db, token, expirationTime)
 }
 
 func (s *UserService) SendPasswordResetToken(email string) (string, error) {

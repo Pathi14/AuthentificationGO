@@ -47,7 +47,7 @@ func ConnectDB() (*sql.DB, error) {
 }
 
 func CreateTableIfNotExists(db *sql.DB) error {
-	createTableQuery := `
+	createUserTableQuery := `
 	CREATE TABLE IF NOT EXISTS users (
 		id SERIAL PRIMARY KEY,
 		name VARCHAR(100),
@@ -57,10 +57,22 @@ func CreateTableIfNotExists(db *sql.DB) error {
 		password VARCHAR(255)
 	);`
 
-	_, err := db.Exec(createTableQuery)
+	createBlacklistTableQuery := `
+	CREATE TABLE IF NOT EXISTS blacklisted_tokens (
+		token VARCHAR(255) PRIMARY KEY,
+		expiration TIMESTAMP NOT NULL
+	);`
+
+	_, err := db.Exec(createUserTableQuery)
 	if err != nil {
 		log.Printf("Error creating table: %v", err)
 		return fmt.Errorf("failed to create users table: %w", err)
+	}
+
+	_, err = db.Exec(createBlacklistTableQuery)
+	if err != nil {
+		log.Printf("Error creating 'blacklisted_tokens' table: %v", err)
+		return fmt.Errorf("failed to create 'blacklisted_tokens' table: %w", err)
 	}
 
 	log.Println("Table 'users' is ready.")
