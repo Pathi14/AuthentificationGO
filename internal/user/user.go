@@ -4,7 +4,7 @@ import "github.com/go-playground/validator/v10"
 
 type User struct {
 	ID           int
-	Name         string `json:"name"`
+	Name         string `json:"name" binding:"required,min=2,max=50"`
 	Age          int    `json:"age" binding:"omitempty,gt=0"`
 	MobileNumber string `json:"mobile_number"`
 	Email        string `json:"email" binding:"required,email"`

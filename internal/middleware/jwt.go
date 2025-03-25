@@ -93,3 +93,17 @@ func isTokenBlacklisted(token string) bool {
 	}
 	return true
 }
+
+func IsTokenBlacklisted(token string) bool {
+	mu.Lock()
+	defer mu.Unlock()
+	expiration, exists := tokenBlacklist[token]
+	if !exists {
+		return false
+	}
+	if time.Now().After(expiration) {
+		delete(tokenBlacklist, token) // Nettoyer les tokens expirés
+		return false
+	}
+	return true
+}

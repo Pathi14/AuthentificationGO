@@ -122,6 +122,10 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 		return fmt.Errorf("validation error: password must be at least 8 characters long")
 	}
 
+	if middleware.IsTokenBlacklisted(token) {
+		return fmt.Errorf("authentication error: token already used or expired")
+	}
+
 	email, err := s.ValidateResetToken(token)
 	if err != nil {
 		return fmt.Errorf("authentication error: %v", err)
@@ -136,6 +140,9 @@ func (s *UserService) ResetPassword(token, newPassword string) error {
 	if err != nil {
 		return fmt.Errorf("internal error: failed to update password: %v", err)
 	}
+
+	expirationTime := time.Now().Add(s.tokenExpiry)
+	middleware.AddToBlacklist(token, expirationTime)
 
 	return nil
 }
