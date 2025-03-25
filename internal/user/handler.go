@@ -204,19 +204,16 @@ func (h *UserHandler) Profile(c *gin.Context) {
 
 func (h *UserHandler) RefreshToken(c *gin.Context) {
 
-	var request struct {
-		Token string `json:"token" binding:"required"`
-	}
+	token := c.GetHeader("Authorization")
 
-	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Données d'entrée invalides",
-			"details": err.Error(),
-		})
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Token manquant"})
 		return
 	}
 
-	accessToken, refreshToken, err := h.service.refreshToken(request.Token)
+	token = strings.TrimPrefix(token, "Bearer ")
+
+	accessToken, refreshToken, err := h.service.refreshToken(token)
 	if err != nil {
 
 		if strings.Contains(err.Error(), "validation error") {

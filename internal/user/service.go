@@ -266,6 +266,7 @@ func (s *UserService) GetUserByID(id int) (*User, error) {
 }
 
 func (s *UserService) refreshToken(refreshToken string) (string, string, error) {
+
 	if refreshToken == "" {
 		return "", "", fmt.Errorf("validation error: refresh token is required")
 	}
@@ -310,6 +311,15 @@ func (s *UserService) refreshToken(refreshToken string) (string, string, error) 
 	if err != nil {
 		return "", "", fmt.Errorf("internal error: failed to generate refresh token")
 	}
+
+	db, err := database.ConnectDB()
+	if err != nil {
+		return "", "", fmt.Errorf("erreur de connexion à la base de données : %v", err)
+	}
+	defer db.Close()
+
+	expirationTime := time.Now().Add(s.tokenExpiry)
+	middleware.AddToBlacklist(db, refreshToken, expirationTime)
 
 	return accessToken, newRefreshToken, nil
 }
