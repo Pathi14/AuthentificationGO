@@ -39,7 +39,7 @@ func Run() {
 		{
 			api.GET("/me", userHandler.Profile)
 			api.POST("/logout", userHandler.Logout)
-			api.POST("/refresh-token", userHandler.RefreshToken)
+			api.POST("/refresh", userHandler.RefreshToken)
 		}
 	}
 
