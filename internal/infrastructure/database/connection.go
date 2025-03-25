@@ -66,3 +66,31 @@ func CreateTableIfNotExists(db *sql.DB) error {
 	log.Println("Table 'users' is ready.")
 	return nil
 }
+
+func ConnectTestDB() (*sql.DB, error) {
+	host := os.Getenv("TEST_DB_HOST")
+	port := os.Getenv("TEST_DB_PORT")
+	user := os.Getenv("TEST_DB_USER")
+	password := os.Getenv("TEST_DB_PASSWORD")
+	dbname := os.Getenv("TEST_DB_NAME")
+
+	pgConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		host, port, user, password, dbname)
+
+	db, err := sql.Open("postgres", pgConnStr)
+	if err != nil {
+		return nil, fmt.Errorf("erreur de connexion à la DB de test : %w", err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, fmt.Errorf("échec de connexion à la DB de test : %w", err)
+	}
+
+	err = CreateTableIfNotExists(db)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("✅ Connexion réussie à la DB de test")
+	return db, nil
+}
