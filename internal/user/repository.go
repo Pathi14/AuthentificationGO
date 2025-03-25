@@ -32,19 +32,6 @@ func (r *UserRepository) Create(user User) error {
 	return nil
 }
 
-func (r *UserRepository) GetByEmail(email string) (*User, error) {
-	var u User
-	err := r.db.QueryRow("SELECT id, name, email FROM users WHERE email = $1", email).
-		Scan(&u.ID, &u.Name, &u.Email)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &u, nil
-}
-
 func (r *UserRepository) Login(email, password string) (*User, error) {
 	var u User
 	var hashedPassword string
@@ -62,6 +49,19 @@ func (r *UserRepository) Login(email, password string) (*User, error) {
 		return nil, fmt.Errorf("invalid password")
 	}
 
+	return &u, nil
+}
+
+func (r *UserRepository) GetByEmail(email string) (*User, error) {
+	var u User
+	err := r.db.QueryRow("SELECT id, name, email FROM users WHERE email = $1", email).
+		Scan(&u.ID, &u.Name, &u.Email)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
 	return &u, nil
 }
 

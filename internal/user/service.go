@@ -111,6 +111,35 @@ func (s *UserService) Logout(tokenString string) error {
 	return nil
 }
 
+func (s *UserService) ResetPassword(token, newPassword string) error {
+	if token == "" {
+		return fmt.Errorf("validation error: token is required")
+	}
+	if newPassword == "" {
+		return fmt.Errorf("validation error: new password is required")
+	}
+	if len(newPassword) < 8 {
+		return fmt.Errorf("validation error: password must be at least 8 characters long")
+	}
+
+	email, err := s.ValidateResetToken(token)
+	if err != nil {
+		return fmt.Errorf("authentication error: %v", err)
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("internal error: failed to hash password: %v", err)
+	}
+
+	err = s.repo.ResetPassword(email, string(hashedPassword))
+	if err != nil {
+		return fmt.Errorf("internal error: failed to update password: %v", err)
+	}
+
+	return nil
+}
+
 func (s *UserService) SendPasswordResetToken(email string) (string, error) {
 	if email == "" {
 		return "", fmt.Errorf("validation error: email is required")
@@ -200,35 +229,6 @@ func sendResetEmail(email, token string) error {
 	fmt.Printf("Subject: Password Reset Request\n")
 	fmt.Printf("Body: Click the link below to reset your password:\n")
 	fmt.Printf("https://go-auth-api-latest.onrender.com/44df37e7-fe2a-404f-917b-399f5c5ffd12/reset-password?token=%s\n", token)
-	return nil
-}
-
-func (s *UserService) ResetPassword(token, newPassword string) error {
-	if token == "" {
-		return fmt.Errorf("validation error: token is required")
-	}
-	if newPassword == "" {
-		return fmt.Errorf("validation error: new password is required")
-	}
-	if len(newPassword) < 8 {
-		return fmt.Errorf("validation error: password must be at least 8 characters long")
-	}
-
-	email, err := s.ValidateResetToken(token)
-	if err != nil {
-		return fmt.Errorf("authentication error: %v", err)
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("internal error: failed to hash password: %v", err)
-	}
-
-	err = s.repo.ResetPassword(email, string(hashedPassword))
-	if err != nil {
-		return fmt.Errorf("internal error: failed to update password: %v", err)
-	}
-
 	return nil
 }
 
