@@ -54,42 +54,41 @@ func (s *UserService) Create(u User) error {
 	return nil
 }
 
-func (s *UserService) Login(email, password string) (string, error) {
+func (s *UserService) Login(email, password string) (string, string, error) {
 	if email == "" {
-		return "", fmt.Errorf("validation error: email is required")
+		return "", "", fmt.Errorf("validation error: email is required")
 	}
 	if password == "" {
-		return "", fmt.Errorf("validation error: password is required")
+		return "", "", fmt.Errorf("validation error: password is required")
 	}
 
 	user, err := s.repo.Login(email, password)
 	if err != nil {
 		if err == sql.ErrNoRows || strings.Contains(err.Error(), "user not found") {
-			return "", fmt.Errorf("authentication error: user not found")
+			return "", "", fmt.Errorf("authentication error: user not found")
 		}
 		if strings.Contains(err.Error(), "invalid password") || strings.Contains(err.Error(), "password does not match") {
-			return "", fmt.Errorf("authentication error: invalid credentials")
+			return "", "", fmt.Errorf("authentication error: invalid credentials")
 		}
-		return "", fmt.Errorf("internal error: %v", err)
+		return "", "", fmt.Errorf("internal error: %v", err)
 	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"email":   user.Email,
-		"exp":     time.Now().Add(time.Hour * 72).Unix(),
-	})
 
 	secretKey := os.Getenv("JWT_SECRET")
 	if secretKey == "" {
-		return "", fmt.Errorf("internal error: JWT_SECRET not configured")
+		return "", "", fmt.Errorf("internal error: JWT_SECRET not configured")
 	}
 
-	tokenString, err := token.SignedString([]byte(secretKey))
+	accessToken, err := s.generateToken(int(user.ID), 2*time.Hour)
 	if err != nil {
-		return "", fmt.Errorf("erreur lors de la génération du token: %v", err)
+		return "", "", fmt.Errorf("internal error: failed to generate access token")
 	}
 
-	return tokenString, nil
+	newRefreshToken, err := s.generateToken(int(user.ID), 7*24*time.Hour)
+	if err != nil {
+		return "", "", fmt.Errorf("internal error: failed to generate refresh token")
+	}
+
+	return accessToken, newRefreshToken, nil
 }
 
 func (s *UserService) Logout(tokenString string) error {
@@ -264,4 +263,68 @@ func (s *UserService) GetUserByID(id int) (*User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *UserService) refreshToken(refreshToken string) (string, string, error) {
+	if refreshToken == "" {
+		return "", "", fmt.Errorf("validation error: refresh token is required")
+	}
+
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		return "", "", fmt.Errorf("internal error: JWT_SECRET not configured")
+	}
+
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secretKey), nil
+	})
+
+	if err != nil || !token.Valid {
+		return "", "", fmt.Errorf("authentication error: invalid refresh token")
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return "", "", fmt.Errorf("authentication error: invalid token claims")
+	}
+
+	userID, ok := claims["user_id"].(float64)
+	if !ok {
+		return "", "", fmt.Errorf("authentication error: invalid user_id")
+	}
+
+	expiration, ok := claims["exp"].(float64)
+	if !ok || time.Now().Unix() > int64(expiration) {
+		return "", "", fmt.Errorf("authentication error: refresh token expired")
+	}
+
+	accessToken, err := s.generateToken(int(userID), 2*time.Hour)
+	if err != nil {
+		return "", "", fmt.Errorf("internal error: failed to generate access token")
+	}
+
+	newRefreshToken, err := s.generateToken(int(userID), 7*24*time.Hour)
+	if err != nil {
+		return "", "", fmt.Errorf("internal error: failed to generate refresh token")
+	}
+
+	return accessToken, newRefreshToken, nil
+}
+
+func (s *UserService) generateToken(userID int, duration time.Duration) (string, error) {
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		return "", fmt.Errorf("internal error: JWT_SECRET not configured")
+	}
+
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"exp":     time.Now().Add(duration).Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secretKey))
 }

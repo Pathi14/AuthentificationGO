@@ -62,7 +62,7 @@ func (h *UserHandler) Login(c *gin.Context) {
 		return
 	}
 
-	token, err := h.service.Login(credentials.Email, credentials.Password)
+	accessToken, refreshToken, err := h.service.Login(credentials.Email, credentials.Password)
 	if err != nil {
 
 		if strings.Contains(err.Error(), "validation error") {
@@ -80,8 +80,9 @@ func (h *UserHandler) Login(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Connexion réussie",
-		"token":   token,
+		"message":      "Connexion réussie",
+		"token":        accessToken,
+		"refreshToken": refreshToken,
 	})
 }
 
@@ -198,5 +199,43 @@ func (h *UserHandler) Profile(c *gin.Context) {
 		"name":        user.Name,
 		"age":         user.Age,
 		"phoneNumber": user.MobileNumber,
+	})
+}
+
+func (h *UserHandler) RefreshToken(c *gin.Context) {
+
+	var request struct {
+		Token string `json:"token" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Données d'entrée invalides",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	accessToken, refreshToken, err := h.service.refreshToken(request.Token)
+	if err != nil {
+
+		if strings.Contains(err.Error(), "validation error") {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if strings.Contains(err.Error(), "authentication error") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token invalide ou expiré"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Une erreur interne est survenue"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":      "Token rafraîchi avec succès",
+		"token":        accessToken,
+		"refreshToken": refreshToken,
 	})
 }
