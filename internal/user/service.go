@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/dgrijalva/jwt-go"
 	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
 	"github.com/pathi14/AuthentificationGO/internal/middleware"
@@ -332,6 +334,7 @@ func (s *UserService) generateToken(userID int, duration time.Duration) (string,
 
 	claims := jwt.MapClaims{
 		"user_id": userID,
+		"id":      uuid.New().String(),
 		"exp":     time.Now().Add(duration).Unix(),
 	}
 
