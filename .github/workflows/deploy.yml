@@ -4,8 +4,27 @@ on:
     branches:
       - main
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Run docker compose
+        uses: hoverkraft-tech/compose-action@v2.0.1
+        with:
+          compose-file: "./docker-compose.yml"
+
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "^1.24.1"
+
+      - name: Run tests
+        run: go test -v ./tests
   build:
     runs-on: ubuntu-latest
+    needs: test
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
