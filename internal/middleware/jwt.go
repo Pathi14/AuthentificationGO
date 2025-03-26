@@ -13,8 +13,6 @@ import (
 	"github.com/pathi14/AuthentificationGO/internal/infrastructure/database"
 )
 
-const TokenExpirationDuration = 2 * time.Hour
-
 // JWTAuth vérifie le token JWT et extrait l'ID utilisateur
 func JWTAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
